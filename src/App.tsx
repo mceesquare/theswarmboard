@@ -322,7 +322,7 @@ export default function CryptoKnowledgeBank() {
       </div>
 
       <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
-        Built with 🖤 by Mantissa
+        Built with 🖤 by Mantissa | X: @dotmantissa
       </div>
     </div>
   );
