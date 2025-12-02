@@ -2,6 +2,11 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+// @ts-ignore
+const isPreview = typeof __firebase_config !== 'undefined';
+// @ts-ignore
+const previewConfig = isPreview ? JSON.parse(__firebase_config) : {};
+
 const firebaseConfig = {
   apiKey: "AIzaSyDzf9VlMw9YpJQ_sdGf006hJa6WorHbEbI",
   authDomain: "theswarmboard.firebaseapp.com",
