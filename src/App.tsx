@@ -10,48 +10,28 @@ import {
   Cpu, 
   ShieldCheck, 
   Terminal,
-  X,
-  Loader2,
-  Search,
-  BookOpen
+  Loader2
 } from 'lucide-react';
-import { initializeApp } from 'firebase/app';
+
+// --- UPDATED IMPORTS ---
 import { 
-  getFirestore, 
   collection, 
   addDoc, 
   deleteDoc, 
   doc, 
   onSnapshot, 
   query, 
-  orderBy, 
   serverTimestamp,
   setDoc 
 } from 'firebase/firestore';
 import { 
-  getAuth, 
   signInAnonymously, 
-  onAuthStateChanged,
-  signInWithCustomToken 
+  onAuthStateChanged 
 } from 'firebase/auth';
 
-// --- Firebase Configuration ---
-// In a real Vercel app, these would be process.env.REACT_APP_FIREBASE_...
-// The system injects these variables in this specific environment.
-const getFirebaseConfig = () => {
-  try {
-    // @ts-ignore
-    return JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-  } catch (e) {
-    return {};
-  }
-};
-
-const app = initializeApp(getFirebaseConfig());
-const auth = getAuth(app);
-const db = getFirestore(app);
-// @ts-ignore
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+// IMPORTANT: Import the database connection from your new config file
+// This expects you have created src/firebaseConfig.ts
+import { db, auth } from './firebaseConfig';
 
 // --- Types ---
 type View = 'chat' | 'admin';
@@ -61,7 +41,7 @@ interface KnowledgeItem {
   category: string;
   title: string;
   content: string;
-  keywords: string[]; // Simple keyword indexing for 0-budget search
+  keywords: string[];
 }
 
 interface Message {
@@ -76,8 +56,8 @@ const extractKeywords = (text: string): string[] => {
   return text.toLowerCase()
     .replace(/[^\w\s]/g, '')
     .split(/\s+/)
-    .filter(w => w.length > 3) // Filter out small words
-    .filter((v, i, a) => a.indexOf(v) === i); // Unique
+    .filter(w => w.length > 3)
+    .filter((v, i, a) => a.indexOf(v) === i);
 };
 
 // --- Main Component ---
@@ -104,17 +84,19 @@ export default function CryptoKnowledgeBank() {
   const [newItemCategory, setNewItemCategory] = useState('General');
   const [newItemContent, setNewItemContent] = useState('');
 
+  // Static App ID for your manual deployment
+  // This ensures all your data goes to the same "bucket" in your database
+  const appId = 'swarm-board-main';
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // --- 1. Auth & Data Init ---
   useEffect(() => {
     const initAuth = async () => {
-      // @ts-ignore
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        // @ts-ignore
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
+      try {
         await signInAnonymously(auth);
+      } catch (error) {
+        console.error("Auth Error:", error);
       }
     };
     initAuth();
@@ -131,6 +113,7 @@ export default function CryptoKnowledgeBank() {
     if (!user) return;
 
     // A. Fetch Knowledge Base
+    // Note: We use the static 'appId' defined above
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'knowledge'));
     const unsubscribeKB = onSnapshot(q, (snapshot) => {
       const items: KnowledgeItem[] = [];
@@ -169,7 +152,6 @@ export default function CryptoKnowledgeBank() {
   const handleSaveSettings = async () => {
     if (!user) return;
     try {
-      // Save key to the shared database
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), {
         apiKey: apiKey
       }, { merge: true });
@@ -177,7 +159,7 @@ export default function CryptoKnowledgeBank() {
       alert("Configuration saved to database. All users will now use this key.");
     } catch (e) {
       console.error("Error saving config:", e);
-      alert("Error saving configuration.");
+      alert("Error saving configuration. Check Firebase Console Rules.");
     }
   };
 
@@ -208,7 +190,6 @@ export default function CryptoKnowledgeBank() {
 
       setNewItemTitle('');
       setNewItemContent('');
-      // Notification or UI feedback could go here
     } catch (e) {
       console.error("Error adding item:", e);
     }
@@ -235,15 +216,12 @@ export default function CryptoKnowledgeBank() {
 
     try {
       // 2. Client-side RAG (Retrieval)
-      // We score knowledge items based on keyword overlap with the user query
       const queryKeywords = extractKeywords(userMsg.content);
       
       const scoredItems = knowledgeBase.map(item => {
         let score = 0;
-        // Boost for title match
         if (item.title.toLowerCase().includes(userMsg.content.toLowerCase())) score += 10;
         
-        // Keyword overlap
         queryKeywords.forEach(qKey => {
           if (item.keywords && item.keywords.includes(qKey)) score += 2;
           if (item.content.toLowerCase().includes(qKey)) score += 1;
@@ -252,11 +230,10 @@ export default function CryptoKnowledgeBank() {
         return { item, score };
       });
 
-      // Filter and Sort by relevance
       const relevantContext = scoredItems
         .filter(x => x.score > 0)
         .sort((a, b) => b.score - a.score)
-        .slice(0, 5) // Take top 5 chunks
+        .slice(0, 5)
         .map(x => `[Source: ${x.item.title}]\n${x.item.content}`)
         .join('\n\n');
 
@@ -352,10 +329,8 @@ export default function CryptoKnowledgeBank() {
 
   const renderChat = () => (
     <div className="flex-1 flex flex-col h-full bg-slate-950 relative overflow-hidden">
-      {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900/20 via-slate-950 to-slate-950 pointer-events-none" />
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 z-10 scrollbar-thin scrollbar-thumb-slate-800">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -400,7 +375,6 @@ export default function CryptoKnowledgeBank() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
       <div className="p-4 bg-slate-900 border-t border-slate-800 z-20">
         <div className="max-w-4xl mx-auto flex gap-2">
           <input
@@ -476,7 +450,6 @@ export default function CryptoKnowledgeBank() {
             </button>
           </div>
 
-          {/* Section 1: API Configuration */}
           <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
             <h3 className="text-lg font-medium text-slate-200 mb-4 flex items-center gap-2">
               <Settings size={18} className="text-blue-400" />
@@ -508,14 +481,12 @@ export default function CryptoKnowledgeBank() {
             </p>
           </div>
 
-          {/* Section 2: Knowledge Base */}
           <div className="space-y-6">
             <h3 className="text-lg font-medium text-slate-200 flex items-center gap-2">
               <Database size={18} className="text-emerald-400" />
               Knowledge Base Management
             </h3>
 
-            {/* Add New */}
             <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Ingest New Data</h4>
@@ -554,7 +525,6 @@ export default function CryptoKnowledgeBank() {
               </div>
             </div>
 
-            {/* List */}
             <div className="space-y-4">
               <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Existing Records ({knowledgeBase.length})</h4>
               {knowledgeBase.length === 0 ? (
