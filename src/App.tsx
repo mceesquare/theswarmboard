@@ -371,8 +371,6 @@ export default function CryptoKnowledgeBank() {
           <span className="font-medium">Clear History</span>
         </button>
 
-        <hr>
-
         <button 
           onClick={() => setView('admin')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 shadow-lg shadow-purple-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
