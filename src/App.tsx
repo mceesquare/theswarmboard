@@ -34,7 +34,7 @@ import {
 import { db, auth } from './firebaseConfig';
 
 // --- CONFIGURATION ---
-const PROJECT_LOGO = "https://placehold.co/200/FFDED6/000000?text=SB";
+const PROJECT_LOGO = "/Logo.png";
 
 // --- Types ---
 type View = 'chat' | 'admin';
