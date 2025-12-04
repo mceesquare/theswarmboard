@@ -419,7 +419,7 @@ export default function CryptoKnowledgeBank() {
               <div className="whitespace-pre-wrap text-sm md:text-base">{msg.content}</div>
               {msg.role === 'ai' && (
                 <div className="mt-3 pt-3 border-t border-slate-800 text-[10px] text-emerald-500/70 flex items-center gap-1 uppercase tracking-widest font-medium">
-                  <ShieldCheck size={12} /> Verified Output
+                  <ShieldCheck size={12} /> Verified Intel
                 </div>
               )}
             </div>
