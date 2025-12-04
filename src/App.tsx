@@ -388,7 +388,7 @@ export default function CryptoKnowledgeBank() {
                 AUTH ERROR: ENABLE ANON AUTH
             </div>
         ) : (
-            <div className="flex items-center justify-center text-xs text-slate-500 font-mono opacity-70 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-center text-xs text-white font-mono opacity-70 hover:opacity-100 transition-opacity">
               Built with 🖤 by Mantissa | X: @dotmantissa
             </div>
         )}
