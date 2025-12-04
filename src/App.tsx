@@ -69,7 +69,7 @@ export default function CryptoKnowledgeBank() {
   // Data State
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([]);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'ai', content: 'Greetings. I am the Oracle for The Swarm Board. Ask me anything about the project, roadmap, or tokenomics.', timestamp: Date.now() }
+    { id: 'welcome', role: 'ai', content: 'Greetings. I am the Swarm Leader of The Swarm Board. What\'d you like to know?.', timestamp: Date.now() }
   ]);
   
   // UI State
