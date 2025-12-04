@@ -36,7 +36,7 @@ import {
 import { db, auth } from './firebaseConfig';
 
 // --- CONFIGURATION ---
-const PROJECT_LOGO = "https://placehold.co/200/FFDED6/000000?text=SB";
+const PROJECT_LOGO = "/Logo.png";
 
 // --- Types ---
 type View = 'chat' | 'admin';
@@ -350,7 +350,6 @@ export default function CryptoKnowledgeBank() {
         </div>
         <div className="flex flex-col">
           <span className="font-bold text-slate-100 tracking-wider text-sm">THE SWARM BOARD</span>
-          <span className="text-[10px] text-emerald-500 font-mono tracking-widest">SYSTEM ONLINE</span>
         </div>
       </div>
       
