@@ -10,10 +10,13 @@ import {
   Cpu, 
   ShieldCheck, 
   Terminal,
-  Loader2
+  Loader2,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 
-// --- UPDATED IMPORTS ---
 import { 
   collection, 
   addDoc, 
@@ -29,12 +32,11 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 
-// IMPORTANT: Import the database connection from your new config file
-// This expects you have created src/firebaseConfig.ts
+// Import the database connection from the config file
 import { db, auth } from './firebaseConfig';
 
 // --- CONFIGURATION ---
-const PROJECT_LOGO = "/Logo.png";
+const PROJECT_LOGO = "https://placehold.co/200/FFDED6/000000?text=SB";
 
 // --- Types ---
 type View = 'chat' | 'admin';
@@ -66,14 +68,32 @@ const extractKeywords = (text: string): string[] => {
 // --- Main Component ---
 export default function CryptoKnowledgeBank() {
   const [user, setUser] = useState<any>(null);
+  const [authError, setAuthError] = useState<string>('');
   const [view, setView] = useState<View>('chat');
   const [apiKey, setApiKey] = useState('');
   
   // Data State
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeItem[]>([]);
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'welcome', role: 'ai', content: 'Greetings. I am the Swarm Leader of The Swarm Board. What\'d you like to know?.', timestamp: Date.now() }
-  ]);
+  
+  // --- PERSISTENCE LOGIC ---
+  // Initialize messages from Local Storage if available
+  const [messages, setMessages] = useState<Message[]>(() => {
+    const saved = localStorage.getItem('swarm_chat_history');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse chat history", e);
+      }
+    }
+    // Default welcome message if no history found
+    return [{ id: 'welcome', role: 'ai', content: 'Greetings. I am the Swarm Leader of The Swarm Board. What\'d you like to know?.', timestamp: Date.now() }];
+  });
+
+  // Save messages to Local Storage whenever they change
+  useEffect(() => {
+    localStorage.setItem('swarm_chat_history', JSON.stringify(messages));
+  }, [messages]);
   
   // UI State
   const [input, setInput] = useState('');
@@ -87,8 +107,7 @@ export default function CryptoKnowledgeBank() {
   const [newItemCategory, setNewItemCategory] = useState('General');
   const [newItemContent, setNewItemContent] = useState('');
 
-  // Static App ID for your manual deployment
-  // This ensures all your data goes to the same "bucket" in your database
+  // Static App ID
   const appId = 'swarm-board-main';
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -98,8 +117,10 @@ export default function CryptoKnowledgeBank() {
     const initAuth = async () => {
       try {
         await signInAnonymously(auth);
-      } catch (error) {
+        setAuthError(''); 
+      } catch (error: any) {
         console.error("Auth Error:", error);
+        setAuthError(error.message || 'Unknown Auth Error');
       }
     };
     initAuth();
@@ -115,8 +136,6 @@ export default function CryptoKnowledgeBank() {
   useEffect(() => {
     if (!user) return;
 
-    // A. Fetch Knowledge Base
-    // Note: We use the static 'appId' defined above
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'knowledge'));
     const unsubscribeKB = onSnapshot(q, (snapshot) => {
       const items: KnowledgeItem[] = [];
@@ -128,7 +147,6 @@ export default function CryptoKnowledgeBank() {
       console.error("Error fetching knowledge:", error);
     });
 
-    // B. Fetch Global Config (API Key)
     const configRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main');
     const unsubscribeConfig = onSnapshot(configRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -152,17 +170,32 @@ export default function CryptoKnowledgeBank() {
 
   // --- Actions ---
 
+  const handleClearHistory = () => {
+    if (window.confirm("Are you sure you want to clear your chat history?")) {
+      const resetState: Message[] = [{ id: 'welcome', role: 'ai', content: 'Greetings. I am the Swarm Leader of The Swarm Board. What\'d you like to know?.', timestamp: Date.now() }];
+      setMessages(resetState);
+      localStorage.removeItem('swarm_chat_history');
+    }
+  };
+
   const handleSaveSettings = async () => {
-    if (!user) return;
+    if (!user) {
+      alert("Error: You are not connected to the database. \n\nPossible fix: Enable 'Anonymous' in Firebase Authentication console.");
+      return;
+    }
     try {
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'config', 'main'), {
         apiKey: apiKey
       }, { merge: true });
       
-      alert("Configuration saved to database. All users will now use this key.");
-    } catch (e) {
+      alert("Success: API Key saved to database.");
+    } catch (e: any) {
       console.error("Error saving config:", e);
-      alert("Error saving configuration. Check Firebase Console Rules.");
+      if (e.code === 'permission-denied') {
+        alert("Permission Denied: Go to Firebase Console > Firestore > Rules and change 'allow write: if false' to 'allow write: if true'.");
+      } else {
+        alert(`Error saving: ${e.message}`);
+      }
     }
   };
 
@@ -178,7 +211,10 @@ export default function CryptoKnowledgeBank() {
 
   const handleAddItem = async () => {
     if (!newItemTitle || !newItemContent) return;
-    if (!user) return;
+    if (!user) {
+        alert("Error: Not authenticated. Cannot write to database.");
+        return;
+    }
 
     try {
       const keywords = extractKeywords(newItemTitle + ' ' + newItemContent + ' ' + newItemCategory);
@@ -193,8 +229,14 @@ export default function CryptoKnowledgeBank() {
 
       setNewItemTitle('');
       setNewItemContent('');
-    } catch (e) {
+      alert("Record added successfully.");
+    } catch (e: any) {
       console.error("Error adding item:", e);
+      if (e.code === 'permission-denied') {
+        alert("Permission Denied: Check Firestore Rules in Firebase Console.");
+      } else {
+        alert("Error adding item.");
+      }
     }
   };
 
@@ -300,77 +342,100 @@ export default function CryptoKnowledgeBank() {
   // --- Renderers ---
 
   const renderSidebar = () => (
-    <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[300px] md:h-full">
-      <div className="p-4 border-b border-slate-800 flex items-center gap-2">
+    <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[300px] md:h-full shadow-xl z-20">
+      <div className="p-6 border-b border-slate-800 flex items-center gap-3 bg-slate-900/50">
         <div className="w-8 h-8 rounded overflow-hidden">
+          {/* SIDEBAR LOGO */}
           <img src={PROJECT_LOGO} alt="Logo" className="w-full h-full object-cover" />
         </div>
-        <span className="font-bold text-slate-100 tracking-wider">THE SWARM BOARD</span>
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-100 tracking-wider text-sm">THE SWARM BOARD</span>
+          <span className="text-[10px] text-emerald-500 font-mono tracking-widest">SYSTEM ONLINE</span>
+        </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         <button 
           onClick={() => setView('chat')}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${view === 'chat' ? 'bg-emerald-500/10 text-emerald-400' : 'text-slate-400 hover:bg-slate-800'}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'chat' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
         >
           <MessageSquare size={18} />
-          <span>Interface</span>
+          <span className="font-medium">Oracle Interface</span>
         </button>
         
         <button 
           onClick={() => setView('admin')}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${view === 'admin' ? 'bg-purple-500/10 text-purple-400' : 'text-slate-400 hover:bg-slate-800'}`}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 shadow-lg shadow-purple-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
         >
           <ShieldCheck size={18} />
-          <span>Admin Panel</span>
+          <span className="font-medium">Admin Panel</span>
+        </button>
+
+        {/* Clear History Button */}
+        <button 
+          onClick={handleClearHistory}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border border-transparent text-slate-400 hover:bg-slate-900 hover:text-red-400"
+        >
+          <RotateCcw size={18} />
+          <span className="font-medium">Clear History</span>
         </button>
       </div>
 
       <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
-        Built with 🖤 by Mantissa | X: @dotmantissa
+        {authError ? (
+            <div className="flex items-center gap-2 text-xs text-red-400 font-mono animate-pulse">
+                <AlertTriangle size={12} />
+                AUTH ERROR: ENABLE ANON AUTH
+            </div>
+        ) : (
+            <div className="flex items-center justify-center text-xs text-slate-500 font-mono opacity-70 hover:opacity-100 transition-opacity">
+              Built with 🖤 by Mantissa | X: @dotmantissa
+            </div>
+        )}
       </div>
     </div>
   );
 
   const renderChat = () => (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900/20 via-slate-950 to-slate-950 pointer-events-none" />
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 z-10 scrollbar-thin scrollbar-thumb-slate-800">
+    <div className="flex-1 flex flex-col h-full bg-slate-950 relative overflow-hidden font-sans">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 z-10 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4 duration-300`}>
             {msg.role !== 'user' && (
-              <div className="w-8 h-8 rounded bg-emerald-900/50 flex items-center justify-center border border-emerald-500/30 shrink-0 overflow-hidden">
+              <div className="w-10 h-10 rounded-xl bg-emerald-950/50 flex items-center justify-center border border-emerald-500/20 shrink-0 shadow-lg shadow-emerald-900/10 overflow-hidden">
+                {/* AI AVATAR IMAGE */}
                 <img src={PROJECT_LOGO} alt="AI" className="w-full h-full object-cover" />
               </div>
             )}
             
-            <div className={`max-w-[80%] rounded-lg p-4 leading-relaxed ${
+            <div className={`max-w-[85%] md:max-w-[75%] rounded-2xl p-5 leading-relaxed shadow-md ${
               msg.role === 'user' 
-                ? 'bg-emerald-600 text-white' 
+                ? 'bg-emerald-600 text-white rounded-tr-none' 
                 : msg.role === 'system'
-                ? 'bg-red-900/20 text-red-400 border border-red-500/30'
-                : 'bg-slate-900 text-slate-300 border border-slate-800'
+                ? 'bg-red-950/30 text-red-400 border border-red-500/30'
+                : 'bg-slate-900 text-slate-200 border border-slate-800 rounded-tl-none'
             }`}>
-              <div className="whitespace-pre-wrap">{msg.content}</div>
+              <div className="whitespace-pre-wrap text-sm md:text-base">{msg.content}</div>
               {msg.role === 'ai' && (
-                <div className="mt-2 text-[10px] text-emerald-500/50 flex items-center gap-1 uppercase tracking-widest">
-                  <ShieldCheck size={10} /> Verified Output
+                <div className="mt-3 pt-3 border-t border-slate-800 text-[10px] text-emerald-500/70 flex items-center gap-1 uppercase tracking-widest font-medium">
+                  <ShieldCheck size={12} /> Verified Output
                 </div>
               )}
             </div>
 
             {msg.role === 'user' && (
-               <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center border border-slate-700 shrink-0">
-               <div className="w-2 h-2 rounded-full bg-slate-400" />
+               <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center border border-slate-700 shrink-0">
+               <div className="w-3 h-3 rounded-full bg-slate-400" />
              </div>
             )}
           </div>
         ))}
         {isLoading && (
-          <div className="flex gap-4">
-             <div className="w-8 h-8 rounded bg-emerald-900/50 flex items-center justify-center border border-emerald-500/30">
-                <Loader2 size={16} className="text-emerald-400 animate-spin" />
+          <div className="flex gap-4 animate-in fade-in duration-300">
+             <div className="w-10 h-10 rounded-xl bg-emerald-950/50 flex items-center justify-center border border-emerald-500/20 overflow-hidden">
+                {/* LOADING AVATAR IMAGE */}
+                <img src={PROJECT_LOGO} alt="Thinking" className="w-full h-full object-cover opacity-50" />
               </div>
               <div className="text-slate-500 text-sm flex items-center animate-pulse">
                 Buzzing the Swarm for answers...
@@ -380,22 +445,23 @@ export default function CryptoKnowledgeBank() {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 bg-slate-900 border-t border-slate-800 z-20">
-        <div className="max-w-4xl mx-auto flex gap-2">
+      {/* Input Area */}
+      <div className="p-4 md:p-6 bg-slate-900/80 backdrop-blur-md border-t border-slate-800 z-20">
+        <div className="max-w-4xl mx-auto flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Psst! Ask the swarm your questions..."
-            className="flex-1 bg-slate-950 border border-slate-800 text-slate-200 px-4 py-3 rounded-md focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-slate-600"
+            className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 px-5 py-4 rounded-xl focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all placeholder:text-slate-600 shadow-inner"
           />
           <button 
             onClick={handleSendMessage}
             disabled={isLoading}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 rounded-xl transition-all shadow-lg shadow-emerald-900/20 hover:shadow-emerald-900/40 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transform active:scale-95"
           >
-            <Send size={20} />
+            <Send size={22} />
           </button>
         </div>
       </div>
@@ -406,9 +472,9 @@ export default function CryptoKnowledgeBank() {
     if (!isAdminUnlocked) {
       return (
         <div className="flex-1 h-full bg-slate-950 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-xl p-8 space-y-6 text-center">
-            <div className="w-16 h-16 bg-red-900/20 rounded-full flex items-center justify-center mx-auto border border-red-500/30">
-              <ShieldCheck size={32} className="text-red-400" />
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6 text-center shadow-2xl">
+            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto border border-slate-700 mb-6">
+              <Lock size={32} className="text-slate-400" />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-100">Restricted Access</h2>
@@ -420,14 +486,15 @@ export default function CryptoKnowledgeBank() {
                 value={adminPasswordInput}
                 onChange={(e) => setAdminPasswordInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
-                placeholder="Password"
-                className={`w-full bg-slate-950 border p-3 rounded text-slate-200 focus:outline-none transition-colors ${loginError ? 'border-red-500' : 'border-slate-700 focus:border-emerald-500'}`}
+                placeholder="Passkey"
+                className={`w-full bg-slate-950 border p-4 rounded-xl text-center text-slate-200 focus:outline-none transition-colors tracking-widest ${loginError ? 'border-red-500 shake' : 'border-slate-700 focus:border-emerald-500'}`}
               />
-              {loginError && <p className="text-red-400 text-sm">Access Denied: Invalid credentials.</p>}
+              {loginError && <p className="text-red-400 text-sm font-medium animate-pulse">Access Denied: Invalid credentials.</p>}
               <button 
                 onClick={handleAdminLogin}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded transition-colors font-medium"
+                className="w-full bg-slate-800 hover:bg-emerald-600 text-white py-4 rounded-xl transition-colors font-medium flex items-center justify-center gap-2 group"
               >
+                <Unlock size={18} className="text-slate-400 group-hover:text-white transition-colors" />
                 Authenticate
               </button>
             </div>
@@ -437,9 +504,9 @@ export default function CryptoKnowledgeBank() {
     }
 
     return (
-      <div className="flex-1 h-full bg-slate-950 p-6 overflow-y-auto">
+      <div className="flex-1 h-full bg-slate-950 p-6 md:p-10 overflow-y-auto">
         <div className="max-w-5xl mx-auto space-y-8">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
             <div>
               <h2 className="text-2xl font-bold text-slate-100 flex items-center gap-3">
                 <ShieldCheck className="text-purple-400" />
@@ -449,110 +516,123 @@ export default function CryptoKnowledgeBank() {
             </div>
             <button 
               onClick={() => setIsAdminUnlocked(false)}
-              className="text-xs text-slate-500 hover:text-slate-300 border border-slate-800 px-3 py-1 rounded"
+              className="text-xs text-slate-400 hover:text-white border border-slate-700 hover:bg-slate-800 px-4 py-2 rounded-lg transition-colors font-mono tracking-wide"
             >
               LOCK TERMINAL
             </button>
           </div>
 
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-            <h3 className="text-lg font-medium text-slate-200 mb-4 flex items-center gap-2">
-              <Settings size={18} className="text-blue-400" />
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl">
+            <h3 className="text-lg font-medium text-slate-200 mb-6 flex items-center gap-2">
+              <Settings size={20} className="text-blue-400" />
               API Configuration
             </h3>
-            <div className="flex gap-4 items-end">
-              <div className="flex-1 space-y-2">
-                <label className="text-xs uppercase tracking-wider text-slate-500 font-bold">Gemini API Key</label>
-                <div className="relative">
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              <div className="flex-1 space-y-2 w-full">
+                <label className="text-xs uppercase tracking-wider text-slate-500 font-bold ml-1">Gemini API Key</label>
+                <div className="relative group">
                   <input 
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     placeholder="AIzaSy..."
-                    className="w-full bg-slate-950 border border-slate-700 p-3 rounded pl-10 text-slate-200 focus:border-blue-500 outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 p-4 rounded-xl pl-12 text-slate-200 focus:border-blue-500 outline-none transition-all"
                   />
-                  <Terminal size={16} className="absolute left-3 top-3.5 text-slate-600" />
+                  <Terminal size={18} className="absolute left-4 top-4.5 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
                 </div>
               </div>
               <button 
                 onClick={handleSaveSettings}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded transition-colors h-[50px]"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl transition-colors font-medium w-full md:w-auto"
               >
                 Save Key
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-2">
-               Key is stored in the database. All users will use this key automatically.
-            </p>
+            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300">
+               <strong>Note:</strong> Key is stored securely in the database. All users will use this shared key automatically.
+            </div>
           </div>
 
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-slate-200 flex items-center gap-2">
-              <Database size={18} className="text-emerald-400" />
+            <h3 className="text-lg font-medium text-slate-200 flex items-center gap-2 px-1">
+              <Database size={20} className="text-emerald-400" />
               Knowledge Base Management
             </h3>
 
-            <div className="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Ingest New Data</h4>
+            <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 space-y-6 shadow-xl">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Ingest New Data</h4>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Plus size={14} /> New Entry
+                </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input 
-                  placeholder="Title (e.g. Tokenomics)" 
-                  value={newItemTitle}
-                  onChange={(e) => setNewItemTitle(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 p-3 rounded text-slate-200 focus:border-emerald-500 outline-none"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                   <label className="text-xs text-slate-500 ml-1">Title</label>
+                   <input 
+                    placeholder="e.g. Tokenomics V2" 
+                    value={newItemTitle}
+                    onChange={(e) => setNewItemTitle(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 p-3 rounded-lg text-slate-200 focus:border-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-xs text-slate-500 ml-1">Category</label>
+                   <select
+                    value={newItemCategory}
+                    onChange={(e) => setNewItemCategory(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 p-3 rounded-lg text-slate-200 focus:border-emerald-500 outline-none appearance-none"
+                  >
+                    <option value="General">General</option>
+                    <option value="Roadmap">Roadmap</option>
+                    <option value="Team">Team</option>
+                    <option value="Technical">Technical</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                 <label className="text-xs text-slate-500 ml-1">Content / Facts</label>
+                 <textarea 
+                  placeholder="Paste context, facts, or whitepaper text here..." 
+                  value={newItemContent}
+                  onChange={(e) => setNewItemContent(e.target.value)}
+                  className="w-full h-40 bg-slate-950 border border-slate-700 p-4 rounded-lg text-slate-200 focus:border-emerald-500 outline-none resize-none font-mono text-sm leading-relaxed"
                 />
-                 <select
-                  value={newItemCategory}
-                  onChange={(e) => setNewItemCategory(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 p-3 rounded text-slate-200 focus:border-emerald-500 outline-none"
-                >
-                  <option value="General">General</option>
-                  <option value="Roadmap">Roadmap</option>
-                  <option value="Team">Team</option>
-                  <option value="Technical">Technical</option>
-                </select>
               </div>
-              <textarea 
-                placeholder="Paste content here..." 
-                value={newItemContent}
-                onChange={(e) => setNewItemContent(e.target.value)}
-                className="w-full h-32 bg-slate-950 border border-slate-700 p-3 rounded text-slate-200 focus:border-emerald-500 outline-none resize-none font-mono text-sm"
-              />
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button 
                   onClick={handleAddItem}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded flex items-center gap-2"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl flex items-center gap-2 font-medium transition-all hover:translate-y-[-1px]"
                 >
-                  <Save size={16} /> Save Record
+                  <Save size={18} /> Save Record
                 </button>
               </div>
             </div>
 
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Existing Records ({knowledgeBase.length})</h4>
+              <h4 className="text-sm font-medium text-slate-400 uppercase tracking-wider px-1">Existing Records ({knowledgeBase.length})</h4>
               {knowledgeBase.length === 0 ? (
-                <div className="text-center py-12 text-slate-600 border border-dashed border-slate-800 rounded-xl bg-slate-900/30">
-                  Database is empty. Add data above.
+                <div className="text-center py-16 text-slate-600 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/30 flex flex-col items-center gap-2">
+                  <Database size={32} className="opacity-20" />
+                  <p>Database is empty. Ingest data above.</p>
                 </div>
               ) : (
-                <div className="grid gap-3">
+                <div className="grid gap-4">
                   {knowledgeBase.map(item => (
-                    <div key={item.id} className="bg-slate-900 border border-slate-800 p-4 rounded-lg group hover:border-slate-700 transition-all flex justify-between items-start">
-                      <div className="flex-1 mr-4">
-                        <div className="flex items-center gap-3 mb-1">
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 uppercase border border-slate-700">{item.category}</span>
-                          <h4 className="font-medium text-slate-200 text-sm">{item.title}</h4>
+                    <div key={item.id} className="bg-slate-900 border border-slate-800 p-5 rounded-xl group hover:border-emerald-500/50 hover:bg-slate-900/80 transition-all flex justify-between items-start shadow-sm">
+                      <div className="flex-1 mr-6">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded text-slate-300 uppercase border border-slate-700 ${item.category === 'Technical' ? 'bg-blue-900/20 text-blue-300' : 'bg-slate-800'}`}>{item.category}</span>
+                          <h4 className="font-semibold text-slate-200 text-base">{item.title}</h4>
                         </div>
-                        <p className="text-xs text-slate-500 line-clamp-1 font-mono">{item.content.substring(0, 100)}...</p>
+                        <p className="text-xs text-slate-500 line-clamp-2 font-mono leading-relaxed pl-1">{item.content}</p>
                       </div>
                       <button 
                         onClick={() => handleDeleteItem(item.id)}
-                        className="p-2 text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
+                        className="p-3 text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors border border-transparent hover:border-red-900/30"
                         title="Delete Record"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -566,7 +646,7 @@ export default function CryptoKnowledgeBank() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-slate-950 text-slate-200 font-sans selection:bg-emerald-500/30 overflow-hidden">
       {renderSidebar()}
       {view === 'chat' ? renderChat() : renderAdmin()}
     </div>
