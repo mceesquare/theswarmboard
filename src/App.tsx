@@ -359,9 +359,20 @@ export default function CryptoKnowledgeBank() {
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'chat' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
         >
           <MessageSquare size={18} />
-          <span className="font-medium">Oracle Interface</span>
+          <span className="font-medium">Swarn Chat</span>
         </button>
-        
+
+         {/* Clear History Button */}
+        <button 
+          onClick={handleClearHistory}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border border-transparent text-slate-400 hover:bg-slate-900 hover:text-red-400"
+        >
+          <RotateCcw size={18} />
+          <span className="font-medium">Clear History</span>
+        </button>
+
+        <hr>
+
         <button 
           onClick={() => setView('admin')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'admin' ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 shadow-lg shadow-purple-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
@@ -370,14 +381,6 @@ export default function CryptoKnowledgeBank() {
           <span className="font-medium">Admin Panel</span>
         </button>
 
-        {/* Clear History Button */}
-        <button 
-          onClick={handleClearHistory}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border border-transparent text-slate-400 hover:bg-slate-900 hover:text-red-400"
-        >
-          <RotateCcw size={18} />
-          <span className="font-medium">Clear History</span>
-        </button>
       </div>
 
       <div className="p-4 border-t border-slate-800 text-xs text-slate-500">
