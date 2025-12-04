@@ -359,7 +359,7 @@ export default function CryptoKnowledgeBank() {
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 border ${view === 'chat' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-900/20' : 'border-transparent text-slate-400 hover:bg-slate-900 hover:text-slate-200'}`}
         >
           <MessageSquare size={18} />
-          <span className="font-medium">Swarn Chat</span>
+          <span className="font-medium">Swarm Chat</span>
         </button>
 
          {/* Clear History Button */}
