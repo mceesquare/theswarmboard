@@ -368,7 +368,7 @@ export default function CryptoKnowledgeBank() {
                 <Loader2 size={16} className="text-emerald-400 animate-spin" />
               </div>
               <div className="text-slate-500 text-sm flex items-center animate-pulse">
-                Processing neural request...
+                Buzzing the Swarm for answers...
               </div>
           </div>
         )}
