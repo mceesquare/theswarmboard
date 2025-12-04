@@ -382,7 +382,7 @@ export default function CryptoKnowledgeBank() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder="Query the protocol..."
+            placeholder="Psst! Ask the swarm your questions..."
             className="flex-1 bg-slate-950 border border-slate-800 text-slate-200 px-4 py-3 rounded-md focus:outline-none focus:border-emerald-500/50 transition-all placeholder:text-slate-600"
           />
           <button 
