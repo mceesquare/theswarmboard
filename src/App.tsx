@@ -33,6 +33,9 @@ import {
 // This expects you have created src/firebaseConfig.ts
 import { db, auth } from './firebaseConfig';
 
+// --- CONFIGURATION ---
+const PROJECT_LOGO = "https://placehold.co/200/FFDED6/000000?text=SB";
+
 // --- Types ---
 type View = 'chat' | 'admin';
 
@@ -299,7 +302,9 @@ export default function CryptoKnowledgeBank() {
   const renderSidebar = () => (
     <div className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-[300px] md:h-full">
       <div className="p-4 border-b border-slate-800 flex items-center gap-2">
-        <Cpu className="text-emerald-400" />
+        <div className="w-8 h-8 rounded overflow-hidden">
+          <img src={PROJECT_LOGO} alt="Logo" className="w-full h-full object-cover" />
+        </div>
         <span className="font-bold text-slate-100 tracking-wider">THE SWARM BOARD</span>
       </div>
       
@@ -335,8 +340,8 @@ export default function CryptoKnowledgeBank() {
         {messages.map((msg) => (
           <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role !== 'user' && (
-              <div className="w-8 h-8 rounded bg-emerald-900/50 flex items-center justify-center border border-emerald-500/30 shrink-0">
-                <Cpu size={16} className="text-emerald-400" />
+              <div className="w-8 h-8 rounded bg-emerald-900/50 flex items-center justify-center border border-emerald-500/30 shrink-0 overflow-hidden">
+                <img src={PROJECT_LOGO} alt="AI" className="w-full h-full object-cover" />
               </div>
             )}
             
