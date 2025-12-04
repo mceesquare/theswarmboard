@@ -244,7 +244,7 @@ export default function CryptoKnowledgeBank() {
         
         Tone: Professional, slightly futuristic, helpful, and concise.
         
-        If the answer is not in the context, strictly state: "I currently do not have that specific data in my knowledge bank."
+        If the answer is not in the context, strictly state: "No one in the swarm has that intel. Sorry buddy."
         Do not hallucinate facts.
         
         CONTEXT FROM KNOWLEDGE BANK:
