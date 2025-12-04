@@ -10,9 +10,26 @@
       tailwind.config = {
         theme: {
           extend: {
-            colors: {
+           colors: {
+              // 1. BACKGROUNDS (Now Black)
               slate: {
-                950: '#020617',
+                800: '#333333', // Borders (Dark Grey for visibility)
+                900: '#000000', // Sidebar (Black)
+                950: '#000000', // Main Background (Black)
+              },
+              
+              // 2. PRIMARY COLOR (Now Peach #FFDED6)
+              emerald: {
+                400: '#FFDED6', // Icons & Highlights
+                500: '#ffcec2', // Button Hover (Slightly darker peach)
+                600: '#FFDED6', // Main Buttons & User Bubbles
+                950: '#1a0500', // Very dark subtle background tint
+              },
+
+              // 3. ACCENTS (Unified to Peach)
+              purple: {
+                400: '#FFDED6',
+                500: '#ffcec2',
               }
             }
           }
