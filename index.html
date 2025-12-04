@@ -4,24 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The Swarm Board</title>
-    <!-- THIS LINE IS CRITICAL FOR STYLING -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
-           colors: {
-              // 1. BACKGROUNDS (Now Black)
+            colors: {
+              // 1. BACKGROUNDS
               slate: {
                 800: '#333333', // Borders (Dark Grey for visibility)
-                900: '#000000', // Sidebar (Black)
+                900: '#FFDED6', // Sidebar (Now Peach)
                 950: '#000000', // Main Background (Black)
               },
               
-              // 2. PRIMARY COLOR (Now Peach #FFDED6)
+              // 2. PRIMARY COLOR (Peach)
               emerald: {
                 400: '#FFDED6', // Icons & Highlights
-                500: '#ffcec2', // Button Hover (Slightly darker peach)
+                500: '#ffcec2', // Button Hover
                 600: '#FFDED6', // Main Buttons & User Bubbles
                 950: '#1a0500', // Very dark subtle background tint
               },
@@ -36,6 +35,46 @@
         }
       }
     </script>
+    <style>
+      /* CONTRAST FIX: Buttons */
+      .bg-emerald-600 {
+        color: #000000 !important;
+        font-weight: 600;
+      }
+
+      /* SIDEBAR VISIBILITY FIXES
+         Since the sidebar (bg-slate-900) is now light Peach (#FFDED6),
+         we must force the text inside it to be Dark/Black.
+      */
+      .bg-slate-900 {
+        color: #000000 !important;
+      }
+      
+      /* Force light gray text to be dark gray */
+      .bg-slate-900 .text-slate-400, 
+      .bg-slate-900 .text-slate-500,
+      .bg-slate-900 .text-slate-300 {
+        color: #4a4a4a !important;
+      }
+
+      /* Force colored icons to be black */
+      .bg-slate-900 .text-emerald-400,
+      .bg-slate-900 .text-purple-400,
+      .bg-slate-900 .text-blue-400 {
+        color: #000000 !important;
+      }
+
+      /* Fix hover states in sidebar to be visible */
+      .bg-slate-900 .hover\:bg-slate-800:hover {
+        background-color: rgba(0,0,0, 0.05) !important;
+      }
+      
+      /* Fix active menu item backgrounds */
+      .bg-slate-900 .bg-emerald-500\/10,
+      .bg-slate-900 .bg-purple-500\/10 {
+        background-color: rgba(0,0,0, 0.1) !important;
+      }
+    </style>
   </head>
   <body class="bg-slate-950 text-white">
     <div id="root"></div>
